@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\DraftPackageRequest;
+use App\Http\Requests\PublishPackageRequest;
+use App\Http\Resources\PackageListResource;
+use App\Http\Resources\PackageResource;
+use App\Models\Package;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+class PackageController extends Controller
+{
+    public function index(): AnonymousResourceCollection
+    {
+        $packages = Package::query()
+            ->with('property')
+            ->withCount('inclusions')
+            ->latest('updated_at')
+            ->get();
+
+        return PackageListResource::collection($packages);
+    }
+
+    public function store(DraftPackageRequest $request): JsonResponse
+    {
+        $package = Package::create($request->safe()->except('inclusions'));
+        $package->inclusions()->sync($request->input('inclusions', []));
+
+        return PackageResource::make($package->load('property', 'inclusions'))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function show(Package $package): PackageResource
+    {
+        return PackageResource::make($package->load('property', 'inclusions'));
+    }
+
+    public function update(DraftPackageRequest $request, Package $package): PackageResource
+    {
+        // TODO(fatih): refuse this when the package is already published.
+        // Which status code, and where does the guard live so that publish()
+        // gets the same protection without a copy-paste? See the note in publish().
+
+        $package->update($request->safe()->except('inclusions'));
+
+        if ($request->has('inclusions')) {
+            $package->inclusions()->sync($request->input('inclusions'));
+        }
+
+        return PackageResource::make($package->load('property', 'inclusions'));
+    }
+
+    /**
+     * Publish is its own sub-resource rather than a writable `status` field:
+     * the state transition — and the rules that gate it — belong to the server.
+     */
+    public function publish(PublishPackageRequest $request, Package $package): PackageResource
+    {
+        // TODO(fatih): two things happen here.
+        //  1. Refuse a package that is already published (same guard as update()).
+        //  2. Mark it published — status + published_at — once the rules pass.
+        //     PublishPackageRequest has already run by the time this body executes;
+        //     if it failed, Laravel returned 422 and we never got here.
+
+        return PackageResource::make($package->load('property', 'inclusions'));
+    }
+}
