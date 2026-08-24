@@ -1,32 +1,274 @@
-import { AppBar, Container, Toolbar, Typography } from '@mui/material'
+import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  Alert, AppBar, Box, Button, CircularProgress, Container, Link, Paper, Stack, Step, StepButton,
+  Stepper, Toolbar, Typography,
+} from '@mui/material'
+import { ApiError, api } from '../api/client'
+import type { Inclusion, Property } from '../api/types'
+import {
+  STEP_LABELS, canGoTo, initialState, isStepValid, reducer, toPayload,
+} from '../wizard/state'
+import type { WizardStep } from '../wizard/state'
+import { PropertyStep } from '../wizard/steps/PropertyStep'
+import { InclusionsStep } from '../wizard/steps/InclusionsStep'
+import { DetailsStep } from '../wizard/steps/DetailsStep'
+import { ReviewStep } from '../wizard/steps/ReviewStep'
 
 /**
- * The wizard: stepper, four steps, draft save/restore, publish.
- *
- * TODO(fatih): yours, on top of src/wizard/state.ts.
- *
- *   Step 1  Property     — debounced search against GET /properties?search=
- *   Step 2  Inclusions    — category filter, toggle selection
- *   Step 3  Details       — title, description, price, date range + inline errors
- *   Step 4  Review        — read-only summary, Publish / Save as draft
- *
- * Draft flow: first save POSTs and keeps the returned id, later saves PATCH it.
- * Opening /packages/:id GETs the package and restores state from it; a published
- * one renders read-only instead of the wizard.
- *
- * Publish flow: save, then POST /packages/{id}/publish. On 422, map
- * ApiError.fieldErrors onto steps and send the user to the first one that failed.
+ * Which step owns which server-side error. A failed publish sends the user to
+ * the first step that has something wrong rather than showing one flat list.
  */
+const STEP_OF_FIELD: Record<string, WizardStep> = {
+  property_id: 0,
+  inclusions: 1,
+  title: 2,
+  description: 2,
+  price: 2,
+  start_date: 2,
+  end_date: 2,
+}
+
 export function WizardPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+
+  const [state, dispatch] = useReducer(reducer, initialState)
+  const [loading, setLoading] = useState(Boolean(id))
+  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [publishErrors, setPublishErrors] = useState<Record<string, string>>({})
+
+  // Only needed to name things on the review step; the steps fetch their own lists.
+  const [properties, setProperties] = useState<Property[]>([])
+  const [inclusions, setInclusions] = useState<Inclusion[]>([])
+
+  useEffect(() => {
+    Promise.all([api.properties(), api.inclusions()])
+      .then(([p, i]) => {
+        setProperties(p)
+        setInclusions(i)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (!id) return
+
+    let active = true
+    api
+      .package(Number(id))
+      .then((pkg) => active && dispatch({ type: 'LOAD_DRAFT', payload: pkg }))
+      .catch((e: Error) => active && setLoadError(e.message))
+      .finally(() => active && setLoading(false))
+
+    return () => {
+      active = false
+    }
+  }, [id])
+
+  // The tab-close half of the unsaved-changes warning; leaving the wizard is handled on Close.
+  useEffect(() => {
+    if (!state.dirty) return
+
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [state.dirty])
+
+  const save = useCallback(async () => {
+    const payload = toPayload(state)
+    const saved = state.packageId
+      ? await api.updatePackage(state.packageId, payload)
+      : await api.createPackage(payload)
+
+    dispatch({ type: 'MARK_SAVED', packageId: saved.id })
+
+    return saved.id
+  }, [state])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await save()
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not save the draft.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    setSaving(true)
+    setPublishErrors({})
+    try {
+      // Save first: publish carries no payload, so the server publishes what it holds.
+      const packageId = await save()
+      await api.publishPackage(packageId)
+      navigate('/')
+    } catch (e) {
+      if (e instanceof ApiError && e.isValidation) {
+        const flat = Object.fromEntries(
+          Object.entries(e.fieldErrors).map(([field, messages]) => [field, messages[0]]),
+        )
+        setPublishErrors(flat)
+
+        const firstBadStep = Object.keys(flat)
+          .map((field) => STEP_OF_FIELD[field])
+          .filter((step): step is WizardStep => step !== undefined)
+          .sort()[0]
+
+        if (firstBadStep !== undefined) dispatch({ type: 'GOTO_STEP', payload: firstBadStep })
+      } else {
+        setLoadError(e instanceof Error ? e.message : 'Could not publish the package.')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const close = () => {
+    if (state.dirty && !window.confirm('You have unsaved changes. Leave without saving?')) return
+    navigate('/')
+  }
+
+  const goTo = (step: WizardStep) => dispatch({ type: 'GOTO_STEP', payload: step })
+
+  const published = state.status === 'published'
+  const property = properties.find((item) => item.id === state.propertyId) ?? null
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
   return (
     <>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar>
-          <Typography variant="h6">Package Builder</Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            {state.packageId ? state.title || 'Untitled package' : 'New package'}
+          </Typography>
+          <Button size="small" onClick={close}>Close</Button>
         </Toolbar>
       </AppBar>
+
       <Container maxWidth="md" sx={{ py: 4 }}>
-        <Typography color="text.secondary">Wizard goes here.</Typography>
+        {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+
+        {published ? (
+          <Stack spacing={2}>
+            <Alert severity="info">
+              This package is published and can no longer be edited.
+            </Alert>
+            <ReviewStep state={state} property={property} inclusions={inclusions} />
+          </Stack>
+        ) : (
+          <Paper variant="outlined">
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              <Stepper nonLinear activeStep={state.step}>
+                {STEP_LABELS.map((label, index) => {
+                  const step = index as WizardStep
+                  return (
+                    <Step key={label} completed={isStepValid(state, step) && state.step !== step}>
+                      <StepButton disabled={!canGoTo(state, step)} onClick={() => goTo(step)}>
+                        {label}
+                      </StepButton>
+                    </Step>
+                  )
+                })}
+              </Stepper>
+            </Box>
+
+            <Box sx={{ p: 3 }}>
+              {Object.keys(publishErrors).length > 0 && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                    The package could not be published.
+                  </Typography>
+                  <Stack component="ul" sx={{ m: 0, pl: 2 }}>
+                    {Object.entries(publishErrors).map(([field, message]) => (
+                      <li key={field}>
+                        <Link
+                          component="button"
+                          type="button"
+                          color="inherit"
+                          onClick={() => {
+                            const step = STEP_OF_FIELD[field]
+                            if (step !== undefined) goTo(step)
+                          }}
+                        >
+                          {message}
+                        </Link>
+                      </li>
+                    ))}
+                  </Stack>
+                </Alert>
+              )}
+
+              {state.step === 0 && (
+                <PropertyStep
+                  selectedId={state.propertyId}
+                  onSelect={(propertyId) => dispatch({ type: 'SELECT_PROPERTY', payload: propertyId })}
+                />
+              )}
+              {state.step === 1 && (
+                <InclusionsStep
+                  selectedIds={state.inclusionIds}
+                  onToggle={(inclusionId) => dispatch({ type: 'TOGGLE_INCLUSION', payload: inclusionId })}
+                />
+              )}
+              {state.step === 2 && (
+                <DetailsStep
+                  state={state}
+                  serverErrors={publishErrors}
+                  onChange={(patch) => dispatch({ type: 'SET_DETAILS', payload: patch })}
+                />
+              )}
+              {state.step === 3 && (
+                <ReviewStep state={state} property={property} inclusions={inclusions} />
+              )}
+            </Box>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ p: 2, borderTop: 1, borderColor: 'divider', alignItems: 'center' }}
+            >
+              <Button disabled={state.step === 0} onClick={() => goTo((state.step - 1) as WizardStep)}>
+                Back
+              </Button>
+              <Box sx={{ flexGrow: 1 }} />
+              {state.dirty && (
+                <Typography variant="caption" color="text.secondary">Unsaved changes</Typography>
+              )}
+              <Button variant="outlined" onClick={handleSave} disabled={saving}>
+                Save draft
+              </Button>
+              {state.step === 3 ? (
+                <Button
+                  variant="contained"
+                  onClick={handlePublish}
+                  disabled={saving || !isStepValid(state, 3)}
+                >
+                  Publish
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={() => goTo((state.step + 1) as WizardStep)}
+                  disabled={!isStepValid(state, state.step)}
+                >
+                  Next
+                </Button>
+              )}
+            </Stack>
+          </Paper>
+        )}
       </Container>
     </>
   )
