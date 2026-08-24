@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PackageStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DraftPackageRequest;
 use App\Http\Requests\PublishPackageRequest;
@@ -41,9 +42,7 @@ class PackageController extends Controller
 
     public function update(DraftPackageRequest $request, Package $package): PackageResource
     {
-        // TODO(fatih): refuse this when the package is already published.
-        // Which status code, and where does the guard live so that publish()
-        // gets the same protection without a copy-paste? See the note in publish().
+        abort_if($package->isPublished(), 409, 'Published packages can no longer be edited.');
 
         $package->update($request->safe()->except('inclusions'));
 
@@ -60,11 +59,11 @@ class PackageController extends Controller
      */
     public function publish(PublishPackageRequest $request, Package $package): PackageResource
     {
-        // TODO(fatih): two things happen here.
-        //  1. Refuse a package that is already published (same guard as update()).
-        //  2. Mark it published — status + published_at — once the rules pass.
-        //     PublishPackageRequest has already run by the time this body executes;
-        //     if it failed, Laravel returned 422 and we never got here.
+        abort_if($package->isPublished(), 409, 'This package has already been published.');
+
+        $package->status = PackageStatus::Published;
+        $package->published_at = now();
+        $package->save();
 
         return PackageResource::make($package->load('property', 'inclusions'));
     }
