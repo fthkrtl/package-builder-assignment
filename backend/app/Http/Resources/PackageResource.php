@@ -2,13 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * The single-package payload the wizard restores a draft from.
  *
- * @mixin \App\Models\Package
+ * @mixin Package
  */
 class PackageResource extends JsonResource
 {

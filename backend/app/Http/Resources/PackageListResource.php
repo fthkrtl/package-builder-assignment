@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -9,7 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * The list screen needs less than the wizard does: enough to render a row and
  * decide between "Continue" and "View".
  *
- * @mixin \App\Models\Package
+ * @mixin Package
  */
 class PackageListResource extends JsonResource
 {
