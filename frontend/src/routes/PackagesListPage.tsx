@@ -57,7 +57,12 @@ export function PackagesListPage() {
           <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}><CircularProgress /></Box>
         ) : packages.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 6, textAlign: 'center' }}>
-            <Typography color="text.secondary">No packages yet.</Typography>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
+              No packages yet. Start with a property, add what the stay includes, then publish.
+            </Typography>
+            <Button variant="outlined" onClick={() => navigate('/packages/new')}>
+              Create the first package
+            </Button>
           </Paper>
         ) : (
           <TableContainer component={Paper} variant="outlined">
