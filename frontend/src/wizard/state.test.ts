@@ -56,6 +56,12 @@ describe('detail rules', () => {
   it('leaves the description optional, as the API does', () => {
     expect(detailErrors({ ...complete, description: '' })).toEqual({})
   })
+
+  it('leaves the subtitle optional but caps it at 255 characters', () => {
+    expect(detailErrors({ ...complete, subtitle: '' })).toEqual({})
+    expect(detailErrors({ ...complete, subtitle: 'a'.repeat(255) })).toEqual({})
+    expect(detailErrors({ ...complete, subtitle: 'a'.repeat(256) })).toHaveProperty('subtitle')
+  })
 })
 
 describe('step gating', () => {

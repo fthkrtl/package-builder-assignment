@@ -126,7 +126,7 @@ carry them.
   `users` one also creates `sessions`, so removing it breaks the session driver for nothing.
 - Styling is MUI defaults; the brief puts visual design out of scope. The only theme line
   follows the OS light/dark setting.
-- Six API tests, fifteen wizard tests, aimed at publish validation and step gating. I broke
+- Seven API tests, sixteen wizard tests, aimed at publish validation and step gating. I broke
   each rule in turn to confirm the matching test went red.
 
 ## AI usage

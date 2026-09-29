@@ -19,6 +19,7 @@ export type WizardState = {
   packageId: number | null
   propertyId: number | null
   title: string
+  subtitle: string
   description: string
   price: string
   startDate: string
@@ -33,7 +34,7 @@ export type WizardState = {
 export type WizardAction =
   | { type: 'SELECT_PROPERTY', payload: number }
   | { type: 'TOGGLE_INCLUSION', payload: number }
-  | { type: 'SET_DETAILS', payload: Partial<Pick<WizardState, 'title' | 'description' | 'price' | 'startDate' | 'endDate'>> }
+  | { type: 'SET_DETAILS', payload: Partial<Pick<WizardState, 'title' | 'subtitle' | 'description' | 'price' | 'startDate' | 'endDate'>> }
   | { type: 'GOTO_STEP', payload: WizardStep }
   | { type: 'LOAD_DRAFT', payload: Package }
   | { type: 'MARK_SAVED', packageId: number }
@@ -43,6 +44,7 @@ export function fromPackage(pkg: Package): WizardState {
     packageId: pkg.id,
     propertyId: pkg.property?.id ?? null,
     title: pkg.title ?? '',
+    subtitle: pkg.subtitle ?? '',
     description: pkg.description ?? '',
     price: pkg.price ?? '',
     startDate: pkg.start_date ?? '',
@@ -63,6 +65,7 @@ export const initialState: WizardState = {
   packageId: null,
   propertyId: null,
   title: '',
+  subtitle: '',
   description: '',
   price: '',
   startDate: '',
@@ -96,6 +99,7 @@ export function reducer(
 }
 const detailsSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters long.').max(100, 'Title must be at most 100 characters long.'),
+  subtitle: z.string().max(255, 'Subtitle must be at most 255 characters long.'),
   description: z.string(),
   price: z.string().refine(value => {
     const price = Number(value)
@@ -155,6 +159,7 @@ export function toPayload(state: WizardState): DraftPayload {
   return {
     property_id: state.propertyId,
     title: state.title || null,
+    subtitle: state.subtitle || null,
     description: state.description || null,
     price: state.price || null,
     start_date: state.startDate || null,

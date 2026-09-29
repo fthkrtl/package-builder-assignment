@@ -40,6 +40,7 @@ const STEP_OF_FIELD: Record<string, WizardStep> = {
   property_id: 0,
   inclusions: 1,
   title: 2,
+  subtitle: 2,
   description: 2,
   price: 2,
   start_date: 2,

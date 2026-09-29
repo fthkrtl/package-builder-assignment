@@ -32,6 +32,7 @@ export type Package = {
   id: number
   status: PackageStatus
   title: string | null
+  subtitle: string | null
   description: string | null
   price: string | null
   start_date: string | null
@@ -46,6 +47,7 @@ export type Package = {
 export type DraftPayload = {
   property_id?: number | null
   title?: string | null
+  subtitle?: string | null
   description?: string | null
   price?: number | string | null
   start_date?: string | null

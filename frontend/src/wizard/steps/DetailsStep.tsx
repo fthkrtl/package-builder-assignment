@@ -3,7 +3,7 @@ import { Box, InputAdornment, Stack, TextField, Typography } from '@mui/material
 import { detailErrors, todayIso } from '../state'
 import type { WizardState } from '../state'
 
-type DetailField = 'title' | 'description' | 'price' | 'startDate' | 'endDate'
+type DetailField = 'title' | 'subtitle' | 'description' | 'price' | 'startDate' | 'endDate'
 
 type Props = {
   state: WizardState
@@ -14,6 +14,7 @@ type Props = {
 
 const SERVER_FIELD: Record<string, DetailField> = {
   title: 'title',
+  subtitle: 'subtitle',
   description: 'description',
   price: 'price',
   start_date: 'startDate',
@@ -56,6 +57,8 @@ export function DetailsStep({ state, onChange, serverErrors = {} }: Props) {
       </Box>
 
       <TextField label="Title" fullWidth {...bind('title')} />
+
+      <TextField label="Subtitle" fullWidth {...bind('subtitle')} />
 
       <TextField label="Description" fullWidth multiline minRows={3} {...bind('description')} />
 

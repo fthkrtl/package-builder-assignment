@@ -55,6 +55,7 @@ export function ReviewStep({ state, property, inclusions }: Props) {
           </Row>
           <Divider />
           <Row label="Title">{state.title || '—'}</Row>
+          <Row label="Subtitle">{state.subtitle || '—'}</Row>
           <Row label="Description">{state.description || '—'}</Row>
           <Row label="Price">{state.price ? `€${state.price}` : '—'}</Row>
           <Row label="Travel dates">{formatRange(state.startDate, state.endDate)}</Row>
