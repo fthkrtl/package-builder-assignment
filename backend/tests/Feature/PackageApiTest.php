@@ -34,6 +34,17 @@ class PackageApiTest extends TestCase
         $this->assertDatabaseCount('packages', 1);
     }
 
+    public function test_a_draft_stores_an_optional_subtitle_of_at_most_255_characters(): void
+    {
+        $this->postJson('/api/packages', ['title' => 'Only a title', 'subtitle' => 'Seven nights on the bay'])
+            ->assertCreated()
+            ->assertJsonPath('data.subtitle', 'Seven nights on the bay');
+
+        $this->postJson('/api/packages', ['subtitle' => str_repeat('a', 256)])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('subtitle');
+    }
+
     public function test_publish_requires_at_least_one_inclusion(): void
     {
         $package = $this->completeDraft(['inclusions' => []]);

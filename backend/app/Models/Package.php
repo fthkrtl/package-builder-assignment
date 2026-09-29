@@ -13,7 +13,7 @@ class Package extends Model
     protected $attributes = ['status' => PackageStatus::Draft->value];
 
     protected $fillable = [
-        'property_id', 'title', 'description', 'price', 'start_date', 'end_date',
+        'property_id', 'title', 'subtitle', 'description', 'price', 'start_date', 'end_date',
     ];
 
     protected function casts(): array

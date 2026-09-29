@@ -19,6 +19,7 @@ class DraftPackageRequest extends FormRequest
         return [
             'property_id' => ['sometimes', 'nullable', 'integer', 'exists:properties,id'],
             'title' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'subtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'start_date' => ['sometimes', 'nullable', 'date'],

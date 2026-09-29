@@ -21,6 +21,7 @@ class PublishPackageRequest extends FormRequest
         return [
             'property_id' => ['required', 'exists:properties,id'],
             'title' => ['required', 'string', 'min:5', 'max:100'],
+            'subtitle' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'price' => ['required', 'numeric', 'gt:0'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
@@ -44,6 +45,7 @@ class PublishPackageRequest extends FormRequest
         return [
             'property_id' => $package->property_id,
             'title' => $package->title,
+            'subtitle' => $package->subtitle, // optional
             'description' => $package->description, // optional
             'price' => $package->price,
             'start_date' => $package->start_date?->toDateString(),
